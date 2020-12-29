@@ -9,6 +9,7 @@ use curl::easy::Easy;
 
 pub struct Filters {}
 
+#[allow(dead_code)]
 impl Filters {
     #[inline]
     pub fn male              (c: &Case) -> bool { c.Sex.eq("Male") }
@@ -152,8 +153,7 @@ pub fn get_data_from_file(from: Option<Date<Utc>>) -> Option<Vec<Case>> {
     // Open the file in read-only mode with buffer.
 
     if let Ok(file) = File::open("test-data/COVID-19_casus_landelijk.json") {
-    // if let Ok(file) = File::open("test-data/test.json") {
-        let mut reader = BufReader::new(file);
+        let reader = BufReader::new(file);
 
         // Read the JSON contents of the file as an instance of `User`
         match serde_json::from_reader(reader) {
@@ -258,20 +258,20 @@ mod my_date_format {
 }
 
 pub fn download_data() {
-    let mut NL_datafile = File::create("test-data/COVID-19_casus_landelijk.json").unwrap();
+    let mut nl_datafile = File::create("test-data/COVID-19_casus_landelijk.json").unwrap();
     let mut handle = Easy::new();
     handle.url("https://data.rivm.nl/covid-19/COVID-19_casus_landelijk.json").unwrap();
     handle.write_function(move |data| {
-        NL_datafile.write_all(data).unwrap();
+        nl_datafile.write_all(data).unwrap();
         Ok(data.len())
     }).unwrap();
     handle.perform().unwrap();    
 
-    let mut WORLD_datafile = File::create("test-data/time_series_covid19_confirmed_global.csv").unwrap();
+    let mut world_datafile = File::create("test-data/time_series_covid19_confirmed_global.csv").unwrap();
     let mut handle = Easy::new();
     handle.url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv").unwrap();
     handle.write_function(move |data| {
-        WORLD_datafile.write_all(data).unwrap();
+        world_datafile.write_all(data).unwrap();
         Ok(data.len())
     }).unwrap();
     handle.perform().unwrap();    
