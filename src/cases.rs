@@ -45,6 +45,28 @@ impl Filters {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PatientCount {
+    #[serde(with = "my_date_format")]    
+    pub date: NaiveDate,
+    pub value: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Hospitalization {
+    #[serde(with = "my_date_format")]    
+    pub Date_statistics: NaiveDate,
+    pub ic_patients: usize,
+    pub rc_patients: usize,
+}
+
+impl Hospitalization {
+    pub fn name(&self) -> String {
+        self.Date_statistics.format("%Y%m%d").to_string()
+    }
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Case {
     #[serde(with = "my_datetime_format")]    
     pub Date_file: DateTime<Utc>,
@@ -111,6 +133,16 @@ pub fn get_cases(from: Option<Date<Utc>>) -> BTreeMap<String, Vec<Case>> {
     res
 }
 
+pub fn get_hospitalizations(from: Option<Date<Utc>>) -> BTreeMap<String, Hospitalization> {
+    let mut res: BTreeMap<String, Hospitalization> = BTreeMap::new();
+    if let Some(hospitalizations) = get_hospitalizationdata_from_file(from) {
+        hospitalizations.iter().for_each(|hospitalization| {
+            res.insert( hospitalization.name(), hospitalization.clone());
+        });
+    }
+    res
+}
+
 pub fn get_tests(from: Option<Date<Utc>>) -> (BTreeMap<String, usize>, usize) {
     let mut res: BTreeMap<String, usize> = BTreeMap::new();
     
@@ -155,7 +187,6 @@ pub fn get_data_from_file(from: Option<Date<Utc>>) -> Option<Vec<Case>> {
     if let Ok(file) = File::open("test-data/COVID-19_casus_landelijk.json") {
         let reader = BufReader::new(file);
 
-        // Read the JSON contents of the file as an instance of `User`
         match serde_json::from_reader(reader) {
             Ok(cases) => {
                 if from != None {
@@ -172,6 +203,59 @@ pub fn get_data_from_file(from: Option<Date<Utc>>) -> Option<Vec<Case>> {
         println!("Error reading file");
     }
     None
+}
+
+pub fn get_hospitalizationdata_from_file(from: Option<Date<Utc>>) -> Option<Vec<Hospitalization>> {
+    let mut ic: Vec<PatientCount> = vec![]; // intake_count
+    let mut rc: Vec<PatientCount> = vec![]; // zkh_intake_count
+
+    if let Ok(file) = File::open("test-data/intake_count.json") {
+        let reader = BufReader::new(file);
+
+        match serde_json::from_reader(reader) {
+            Ok(patients) => {
+                if from != None {
+                    let all_partients: Vec<PatientCount> = patients;
+                    ic = all_partients.iter().filter(|&patient| {
+                        return patient.date > from.unwrap().naive_utc() 
+                    }).map(|patient| patient.clone() ).collect::<Vec<PatientCount>>();
+                } else {
+                    ic = patients.clone();
+                }
+            },
+            Err(e) => println!("Error: {:?}", e)
+        }
+    } else {
+        println!("Error reading file");
+    }
+
+    if let Ok(file) = File::open("test-data/zkh_intake_count.json") {
+        let reader = BufReader::new(file);
+
+        match serde_json::from_reader(reader) {
+            Ok(patients) => {
+                if from != None {
+                    let all_partients: Vec<PatientCount> = patients;
+                    rc = all_partients.iter().filter(|&patient| {
+                        return patient.date > from.unwrap().naive_utc() 
+                    }).map(|patient| patient.clone() ).collect::<Vec<PatientCount>>();
+                } else {
+                    rc = patients.clone();
+                }
+            },
+            Err(e) => println!("Error: {:?}", e)
+        }
+    } else {
+        println!("Error reading file");
+    }
+
+    let mut hospitalizations: Vec<Hospitalization> = vec![];
+    let counts = ic.iter().zip(rc.iter());
+    for c in counts {
+        hospitalizations.push( Hospitalization{ Date_statistics: c.0.date, ic_patients: c.0.value, rc_patients: c.1.value } );
+    }
+
+    Some(hospitalizations)
 }
 
 mod my_datetime_format {
@@ -263,6 +347,24 @@ pub fn download_data() {
     handle.url("https://data.rivm.nl/covid-19/COVID-19_casus_landelijk.json").unwrap();
     handle.write_function(move |data| {
         nl_datafile.write_all(data).unwrap();
+        Ok(data.len())
+    }).unwrap();
+    handle.perform().unwrap();    
+
+    let mut nl_rc_intake_datafile = File::create("test-data/zkh_intake_count.json").unwrap();
+    let mut handle = Easy::new();
+    handle.url("https://stichting-nice.nl/covid-19/public/zkh/intake-count/").unwrap();
+    handle.write_function(move |data| {
+        nl_rc_intake_datafile.write_all(data).unwrap();
+        Ok(data.len())
+    }).unwrap();
+    handle.perform().unwrap();    
+
+    let mut nl_ic_intake_datafile = File::create("test-data/intake_count.json").unwrap();
+    let mut handle = Easy::new();
+    handle.url("https://stichting-nice.nl/covid-19/public/intake-count/").unwrap();
+    handle.write_function(move |data| {
+        nl_ic_intake_datafile.write_all(data).unwrap();
         Ok(data.len())
     }).unwrap();
     handle.perform().unwrap();    

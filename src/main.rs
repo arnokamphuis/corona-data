@@ -24,6 +24,7 @@ fn main() {
 
     let all_cases    = get_cases(Some(from));
     let (mut dutch_tests, test_total) = get_tests(Some(from)).clone();
+    let all_hospitalizations = get_hospitalizations(Some(from));
 
     // if totals data is not up to date, we need to add the last day
     let total = incr_before_20200227 + all_cases.iter().fold(0, |acc, (_,cases)| acc + cases.len());
@@ -54,7 +55,9 @@ fn main() {
     };
     create_graph(&all_cases, &dutch_tests, &calculate_growth_of_growth_factor, 10+5+1+5+1, "Growth of the Growth factor per age group", "Growth factor of the growth factor", "graphs/growth_of_growth_factor.html", "growth_growth", &mut overview_file);
 
-    trends(&all_cases, "linreg", &mut overview_file);
+    trends(&all_cases, &all_hospitalizations, "linreg", &mut overview_file);
+
+    hospitalization_graph(&all_hospitalizations, "hospitalizations", &mut overview_file);
 
     write_footer(&mut overview_file);
 }
@@ -80,18 +83,18 @@ fn create_graph(
     };
 
     let set_cases: Vec<(Vec<f32>, &str)> = vec![
-        ( dutch_counts(dutch_tests)                                                 , "All tests"),
-        ( case_counts(&all_cases)                                                   , "All cases"), 
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_0_9    ])), "Younger than 10"), 
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_10_19  ])), "Between 10-19"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_20_29  ])), "Between 20-29"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_30_39  ])), "Between 30-39"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_40_49  ])), "Between 40-49"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_50_59  ])), "Between 50-59"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_60_69  ])), "Between 60-69"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_70_79  ])), "Between 70-79"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_80_89  ])), "Between 80-89"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_90_plus])), "Older than 89")
+        ( dutch_counts(dutch_tests)                                                 , "Tests"),
+        ( case_counts(&all_cases)                                                   , "All"), 
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_0_9    ])), "<10"), 
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_10_19  ])), "10-19"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_20_29  ])), "20-29"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_30_39  ])), "30-39"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_40_49  ])), "40-49"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_50_59  ])), "50-59"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_60_69  ])), "60-69"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_70_79  ])), "70-79"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_80_89  ])), "80-89"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_90_plus])), "90+")
     ];
 
     let labels = all_cases.iter().skip(filter_size_labels).map(|(name,case)| {
@@ -145,23 +148,27 @@ pub fn write_footer(file: &mut File) {
 }
 
 
-pub fn trends(all_cases: &BTreeMap<String, Vec<Case>>, div_name: &'static str, overview_file: &mut File) {
+pub fn trends(all_cases: &BTreeMap<String, Vec<Case>>, all_hospitalizations: &BTreeMap<String, Hospitalization>, div_name: &'static str, overview_file: &mut File) {
     let case_counts = | cs: &BTreeMap<String, Vec<Case>> | -> Vec<f32> {
         cs.iter().map(|(_, cases)| cases.len() as f32 ).collect::<Vec<f32>>()
     };
 
+    let last_case_date: String = all_cases.iter().last().unwrap().0.clone();
+
     let set_cases: Vec<(Vec<f32>, &str)> = vec![
-        ( case_counts(&all_cases)                                                   , "All cases"), 
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_0_9    ])), "Younger than 10"), 
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_10_19  ])), "Between 10-19"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_20_29  ])), "Between 20-29"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_30_39  ])), "Between 30-39"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_40_49  ])), "Between 40-49"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_50_59  ])), "Between 50-59"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_60_69  ])), "Between 60-69"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_70_79  ])), "Between 70-79"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_80_89  ])), "Between 80-89"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_90_plus])), "Older than 89")
+        ( case_counts(&all_cases)                                                   , "All"), 
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_0_9    ])), "<10"), 
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_10_19  ])), "10-19"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_20_29  ])), "20-29"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_30_39  ])), "30-39"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_40_49  ])), "40-49"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_50_59  ])), "50-59"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_60_69  ])), "60-69"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_70_79  ])), "70-79"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_80_89  ])), "80-89"),
+        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_90_plus])), "90+"),
+        ( all_hospitalizations.iter().filter(|(name,_)| (*name).cmp(&last_case_date) != std::cmp::Ordering::Greater ).map(|(_,h)| h.ic_patients as f32).collect::<Vec<f32>>().clone() , "IC"),
+        ( all_hospitalizations.iter().filter(|(name,_)| (*name).cmp(&last_case_date) != std::cmp::Ordering::Greater ).map(|(_,h)| h.rc_patients as f32).collect::<Vec<f32>>().clone() , "RC"),
     ];
 
     let start_day = 1;
@@ -190,8 +197,9 @@ pub fn trends(all_cases: &BTreeMap<String, Vec<Case>>, div_name: &'static str, o
     let begin = labels.iter().rev().skip(7).next().unwrap();
     let end = labels.iter().last().unwrap();
 
-    let y_data = results.iter().map(|sc| {
-        (sc.0.to_string(), sc.1.iter().map(|(_,v)| *v).collect::<Vec<f32>>())
+
+    let y_data = set_cases.iter().map(|sc| {
+        (sc.1.to_string(), results[sc.1].iter().map(|(_,v)| *v).collect::<Vec<f32>>() )
     }).collect::<Vec<(String, Vec<f32>)>>();
 
     let layout = Layout::new().bar_mode(BarMode::Group)
@@ -212,3 +220,36 @@ pub fn trends(all_cases: &BTreeMap<String, Vec<Case>>, div_name: &'static str, o
 
 }
 
+fn hospitalization_graph(all_hospitalizations: &BTreeMap<String, Hospitalization>, div_name: &'static str, overview_file: &mut File) {
+    let labels = all_hospitalizations.iter().skip(5).map(|(name,_)| {
+        let mut dashed_name = name.clone();
+        dashed_name.insert(6,'-',);
+        dashed_name.insert(4,'-',);
+        return dashed_name;
+    }).collect::<Vec<String>>();
+
+    let y_data = vec![
+        ("IC".to_string(), windowed_average(&all_hospitalizations.iter().map(|(_,h)| h.ic_patients as f32 ).collect::<Vec<f32>>(), 3)),
+        ("RC".to_string(),   windowed_average(&all_hospitalizations.iter().map(|(_,h)| h.rc_patients as f32 ).collect::<Vec<f32>>(), 3))
+    ];
+
+    let begin = labels.iter().rev().skip(30).next().unwrap();
+    let end = labels.iter().last().unwrap();
+
+    let layout = Layout::new().bar_mode(BarMode::Group)
+        .title(Title::new("Hospitalizations per day").font(Font::new().color(NamedColor::Black).size(24).family("Droid Serif")))
+        .x_axis(Axis::new().type_(AxisType::Date).title(Title::new("Day").font(Font::new().color(NamedColor::Black).size(12).family("Droid Serif"))).range(vec![begin,end]))
+        .y_axis(Axis::new().title(Title::new("Patients in care").font(Font::new().color(NamedColor::Black).size(12).family("Droid Serif"))));
+
+    let mut plot = Plot::new();
+    y_data.iter().for_each(|(name, data)| {
+        plot.add_trace( Scatter::new( labels.clone(), data.clone() ).name(name) )
+    });
+    plot.set_layout(layout);
+
+    plot.to_html("graphs/hospitalizations.html");
+    let html = plot.to_inline_html(Some(div_name));
+    overview_file.write_all(html.as_bytes());
+    overview_file.write_all(b"\n");
+
+}
