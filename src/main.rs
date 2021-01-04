@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::io::prelude::*;
-use linreg::{linear_regression, linear_regression_of};
+use linreg::linear_regression_of;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
