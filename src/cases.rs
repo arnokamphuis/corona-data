@@ -249,10 +249,46 @@ pub fn get_hospitalizationdata_from_file(from: Option<Date<Utc>>) -> Option<Vec<
         println!("Error reading file");
     }
 
+    let mut res: BTreeMap<String, usize> = BTreeMap::new();
+
+    // let mut lcps_data: BTreeMap<NaiveDate, (usize, usize)> = BTreeMap::new();
+    
+    // let file = File::open("test-data/lcps-covid-19.csv").unwrap();
+    // let mut rdr = csv::Reader::from_reader(file);
+    // let header_record = rdr.headers().unwrap().clone();
+    // for result in rdr.records() {
+    //     let record = result.unwrap();
+    //     let resrec =  header_record.iter().zip(record.iter());
+    //     let mut date: NaiveDate = NaiveDate::from_ymd(2021,1,1);
+    //     let mut ic_count = 0;
+    //     let mut rc_count = 0;
+    //     for (k, v) in resrec {
+    //         match k {
+    //             "Datum" => { 
+    //                 let parts = v.split("-").map(|s| s.parse::<u32>().unwrap()).collect::<Vec<u32>>();
+    //                 date = NaiveDate::from_ymd(parts[2] as i32, parts[1], parts[0]); 
+    //             },
+    //             "IC_Bedden_COVID" => {
+    //                 ic_count = v.parse::<usize>().unwrap();
+    //             },
+    //             "Kliniek_Bedden" => {
+    //                 rc_count = v.parse::<usize>().unwrap();
+    //             },
+    //             _ => {}
+    //         }
+    //     }
+    //     lcps_data.insert( date, (ic_count,rc_count));
+    // }
+
     let mut hospitalizations: Vec<Hospitalization> = vec![];
     let counts = ic.iter().zip(rc.iter());
     for c in counts {
         hospitalizations.push( Hospitalization{ Date_statistics: c.0.date, ic_patients: c.0.value, rc_patients: c.1.value } );
+        // if lcps_data.contains_key(&c.0.date) {
+        //     let (ic_count, rc_count) = lcps_data[&c.0.date];
+        //     // println!("{:?} => {} vs {}   ===   {} vs {}", c.0.date, c.0.value, ic_count, c.1.value, rc_count);
+        //     println!("{:?} => {}   ===   {} ", c.0.date, c.0.value as i32 - ic_count as i32, c.1.value as i32 - rc_count as i32);
+        // }
     }
 
     Some(hospitalizations)
@@ -374,6 +410,15 @@ pub fn download_data() {
     handle.url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv").unwrap();
     handle.write_function(move |data| {
         world_datafile.write_all(data).unwrap();
+        Ok(data.len())
+    }).unwrap();
+    handle.perform().unwrap();    
+
+    let mut lcps_datafile = File::create("test-data/lcps-covid-19.csv").unwrap();
+    let mut handle = Easy::new();
+    handle.url("https://lcps.nu/wp-content/uploads/covid-19.csv").unwrap();
+    handle.write_function(move |data| {
+        lcps_datafile.write_all(data).unwrap();
         Ok(data.len())
     }).unwrap();
     handle.perform().unwrap();    

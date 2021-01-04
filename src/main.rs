@@ -40,7 +40,7 @@ fn main() {
     let calculate_active_cases = | cs: &Vec<f32> | {
         active_cases(&cs, 10)
     };
-    create_graph(&all_cases, &dutch_tests, &calculate_active_cases, 10, "Active cases (last 10 days)", "Active cases", "graphs/active_cases.html", "active_cases", &mut overview_file);
+    create_graph(&all_cases, &dutch_tests, &calculate_active_cases, 10, "Active cases (lasting 10 days)", "Active cases", "graphs/active_cases.html", "active_cases", &mut overview_file);
 
 
     let calculate_new_cases = | cs: &Vec<f32> | {
@@ -161,17 +161,17 @@ pub fn trends(all_cases: &BTreeMap<String, Vec<Case>>, all_hospitalizations: &BT
     let last_case_date: String = all_cases.iter().last().unwrap().0.clone();
 
     let set_cases: Vec<(Vec<f32>, &str)> = vec![
-        ( case_counts(&all_cases)                                                   , "All"), 
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_0_9    ])), "<10"), 
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_10_19  ])), "10-19"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_20_29  ])), "20-29"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_30_39  ])), "30-39"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_40_49  ])), "40-49"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_50_59  ])), "50-59"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_60_69  ])), "60-69"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_70_79  ])), "70-79"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_80_89  ])), "80-89"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_90_plus])), "90+"),
+        ( active_cases(&case_counts(&all_cases)                                                   ,10), "All"), 
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_0_9    ])),10), "<10"), 
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_10_19  ])),10), "10-19"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_20_29  ])),10), "20-29"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_30_39  ])),10), "30-39"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_40_49  ])),10), "40-49"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_50_59  ])),10), "50-59"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_60_69  ])),10), "60-69"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_70_79  ])),10), "70-79"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_80_89  ])),10), "80-89"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_90_plus])),10), "90+"),
         ( all_hospitalizations.iter().filter(|(name,_)| (*name).cmp(&last_case_date) != std::cmp::Ordering::Greater ).map(|(_,h)| h.ic_patients as f32).collect::<Vec<f32>>().clone() , "IC"),
         ( all_hospitalizations.iter().filter(|(name,_)| (*name).cmp(&last_case_date) != std::cmp::Ordering::Greater ).map(|(_,h)| h.rc_patients as f32).collect::<Vec<f32>>().clone() , "RC"),
     ];
@@ -207,7 +207,7 @@ pub fn trends(all_cases: &BTreeMap<String, Vec<Case>>, all_hospitalizations: &BT
     }).collect::<Vec<(String, Vec<f32>)>>();
 
     let layout = Layout::new().bar_mode(BarMode::Group)
-        .title(Title::new("Relative change in cases (7 day lin.reg.)").font(Font::new().color(NamedColor::Black).size(24).family("Droid Serif")))
+        .title(Title::new("Rel. change in active cases (7 day lin.reg.)").font(Font::new().color(NamedColor::Black).size(24).family("Droid Serif")))
         .x_axis(Axis::new().type_(AxisType::Date).title(Title::new("Day").font(Font::new().color(NamedColor::Black).size(12).family("Droid Serif"))).range(vec![begin,end]))
         .y_axis(Axis::new().title(Title::new("Increase/decrease").font(Font::new().color(NamedColor::Black).size(12).family("Droid Serif"))));
 
@@ -312,17 +312,17 @@ pub fn trends_of_trends(all_cases: &BTreeMap<String, Vec<Case>>, all_hospitaliza
     let last_case_date: String = all_cases.iter().last().unwrap().0.clone();
 
     let set_cases: Vec<(Vec<f32>, &str)> = vec![
-        ( case_counts(&all_cases)                                                   , "All"), 
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_0_9    ])), "<10"), 
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_10_19  ])), "10-19"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_20_29  ])), "20-29"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_30_39  ])), "30-39"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_40_49  ])), "40-49"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_50_59  ])), "50-59"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_60_69  ])), "60-69"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_70_79  ])), "70-79"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_80_89  ])), "80-89"),
-        ( case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_90_plus])), "90+"),
+        ( active_cases(&case_counts(&all_cases)                                                   ,10), "All"), 
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_0_9    ])),10), "<10"), 
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_10_19  ])),10), "10-19"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_20_29  ])),10), "20-29"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_30_39  ])),10), "30-39"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_40_49  ])),10), "40-49"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_50_59  ])),10), "50-59"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_60_69  ])),10), "60-69"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_70_79  ])),10), "70-79"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_80_89  ])),10), "80-89"),
+        ( active_cases(&case_counts(&filter_cases(&all_cases, &vec![&Filters::age_group_90_plus])),10), "90+"),
         ( all_hospitalizations.iter().filter(|(name,_)| (*name).cmp(&last_case_date) != std::cmp::Ordering::Greater ).map(|(_,h)| h.ic_patients as f32).collect::<Vec<f32>>().clone() , "IC"),
         ( all_hospitalizations.iter().filter(|(name,_)| (*name).cmp(&last_case_date) != std::cmp::Ordering::Greater ).map(|(_,h)| h.rc_patients as f32).collect::<Vec<f32>>().clone() , "RC"),
     ];
@@ -375,7 +375,7 @@ pub fn trends_of_trends(all_cases: &BTreeMap<String, Vec<Case>>, all_hospitaliza
     }).collect::<Vec<(String, Vec<f32>)>>();
 
     let layout = Layout::new().bar_mode(BarMode::Group)
-        .title(Title::new("Change of the change in cases (7 day lin.reg.)").font(Font::new().color(NamedColor::Black).size(24).family("Droid Serif")))
+        .title(Title::new("Change of the change in active cases (7 day lin.reg.)").font(Font::new().color(NamedColor::Black).size(24).family("Droid Serif")))
         .x_axis(Axis::new().type_(AxisType::Date).title(Title::new("Day").font(Font::new().color(NamedColor::Black).size(12).family("Droid Serif"))).range(vec![begin,end]))
         .y_axis(Axis::new().title(Title::new("Increase/decrease").font(Font::new().color(NamedColor::Black).size(12).family("Droid Serif"))));
 
