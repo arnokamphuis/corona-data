@@ -65,6 +65,20 @@ impl Hospitalization {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Prevalence {
+    #[serde(with = "my_date_format")]    
+    pub Date: NaiveDate,
+    pub prev_low: usize,
+    pub prev_avg: Option<usize>,
+    pub prev_up:  usize
+}
+
+impl Prevalence {
+    pub fn name(&self) -> String {
+        self.Date.format("%Y%m%d").to_string()
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Case {
@@ -133,6 +147,16 @@ pub fn get_cases(from: Option<Date<Utc>>) -> BTreeMap<String, Vec<Case>> {
     res
 }
 
+pub fn get_prevalences(from: Option<Date<Utc>>) -> BTreeMap<String, Prevalence> {
+    let mut res: BTreeMap<String, Prevalence> = BTreeMap::new();
+    if let Some(prevs) = get_prevalence_from_file(from) {
+        prevs.iter().for_each(|prev| {
+            res.insert( prev.name(), prev.clone());
+        });
+    }
+    res
+}
+
 pub fn get_hospitalizations(from: Option<Date<Utc>>) -> BTreeMap<String, Hospitalization> {
     let mut res: BTreeMap<String, Hospitalization> = BTreeMap::new();
     if let Some(hospitalizations) = get_hospitalizationdata_from_file(from) {
@@ -196,6 +220,30 @@ pub fn get_data_from_file(from: Option<Date<Utc>>) -> Option<Vec<Case>> {
                     }).map(|case| case.clone() ).collect::<Vec<Case>>());
                 }
                 return Some(cases)
+            },
+            Err(e) => println!("Error: {:?}", e)
+        }
+    } else {
+        println!("Error reading file");
+    }
+    None
+}
+
+pub fn get_prevalence_from_file(from: Option<Date<Utc>>) -> Option<Vec<Prevalence>> {
+    // Open the file in read-only mode with buffer.
+
+    if let Ok(file) = File::open("test-data/COVID-19_prevalentie.json") {
+        let reader = BufReader::new(file);
+
+        match serde_json::from_reader(reader) {
+            Ok(prevs) => {
+                if from != None {
+                    let all_prevs: Vec<Prevalence> = prevs;
+                    return Some(all_prevs.iter().filter(|&prev| {
+                        return prev.Date > from.unwrap().naive_utc() 
+                    }).map(|prev| prev.clone() ).collect::<Vec<Prevalence>>());
+                }
+                return Some(prevs)
             },
             Err(e) => println!("Error: {:?}", e)
         }
@@ -387,6 +435,15 @@ pub fn download_data() {
     }).unwrap();
     handle.perform().unwrap();    
 
+    let mut prev_datafile = File::create("test-data/COVID-19_prevalentie.json").unwrap();
+    let mut handle = Easy::new();
+    handle.url("https://data.rivm.nl/covid-19/COVID-19_prevalentie.json").unwrap();
+    handle.write_function(move |data| {
+        prev_datafile.write_all(data).unwrap();
+        Ok(data.len())
+    }).unwrap();
+    handle.perform().unwrap();
+
     let mut nl_rc_intake_datafile = File::create("test-data/zkh_intake_count.json").unwrap();
     let mut handle = Easy::new();
     handle.url("https://stichting-nice.nl/covid-19/public/zkh/intake-count/").unwrap();
@@ -424,3 +481,5 @@ pub fn download_data() {
     handle.perform().unwrap();    
 
 }
+
+//https://coronadashboard.rijksoverheid.nl/_next/data/No7X2glRgBnqP7XDyyRnD/landelijk/positief-geteste-mensen.json
