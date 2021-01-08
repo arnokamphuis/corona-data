@@ -114,7 +114,7 @@ fn create_graph(
 
     let factors = get_scale_factors(&all_cases, &all_prevalences).iter().skip(0).map(|&v| v).collect::<Vec<f32>>();
 
-    let labels = all_cases.iter().skip(filter_size_labels).map(|(name,case)| {
+    let labels = all_cases.iter().skip(filter_size_labels).map(|(name,_)| {
         let mut dashed_name = name.clone();
         dashed_name.insert(6,'-',);
         dashed_name.insert(4,'-',);
@@ -216,7 +216,7 @@ pub fn trends(
         }
     }
 
-    let labels = all_cases.iter().rev().skip(start_day).take(max_days_back-start_day).rev().map(|(name,case)| {
+    let labels = all_cases.iter().rev().skip(start_day).take(max_days_back-start_day).rev().map(|(name,_)| {
         let mut dashed_name = name.clone();
         dashed_name.insert(6,'-',);
         dashed_name.insert(4,'-',);
@@ -377,7 +377,7 @@ pub fn trends_of_trends(
         ).collect::<Vec<(String, Vec<(f32,f32)>)>>();
 
         for set in &last_seven {
-            let last_value = set.1.iter().rev().next().unwrap().1;
+            // let last_value = set.1.iter().rev().next().unwrap().1;
             let lr: (f32, f32) = linear_regression_of(&set.1).unwrap();
             trends.entry(set.0.clone()).or_insert(vec![]).push((0.0 - days_back as f32,lr.0));
         }
@@ -398,7 +398,7 @@ pub fn trends_of_trends(
         }
     }
 
-    let labels = all_cases.iter().rev().skip(1).take(max_days_back-1).rev().map(|(name,case)| {
+    let labels = all_cases.iter().rev().skip(1).take(max_days_back-1).rev().map(|(name,_)| {
         let mut dashed_name = name.clone();
         dashed_name.insert(6,'-',);
         dashed_name.insert(4,'-',);
@@ -436,7 +436,7 @@ pub fn get_scale_factors(all_cases: &BTreeMap<String, Vec<Case>>, all_prevalence
     };
 
     let set_cases = active_cases(&case_counts(all_cases), 10);
-    let mut set_prevs = all_prevalences.iter().skip(10).map(|(name, prev)|  (prev.prev_up + prev.prev_low) as f32 / 2.0f32).collect::<Vec<f32>>();
+    let set_prevs = all_prevalences.iter().skip(10).map(|(_, prev)|  (prev.prev_up + prev.prev_low) as f32 / 2.0f32).collect::<Vec<f32>>();
     let mut res: Vec<f32> = vec![];
     for (c, p) in set_cases.iter().zip(set_prevs.iter()) {
         res.push( *c / *p );
@@ -452,7 +452,7 @@ pub fn get_scale_factors(all_cases: &BTreeMap<String, Vec<Case>>, all_prevalence
 pub fn prevalence_factor_graph(all_cases: &BTreeMap<String, Vec<Case>>, all_prevalences: &BTreeMap<String, Prevalence>) {
     let factors = get_scale_factors(all_cases, all_prevalences).iter().map(|&v| 1.0f32 / v).collect::<Vec<f32>>();
 
-    let labels = all_cases.iter().skip(10).map(|(name,case)| {
+    let labels = all_cases.iter().skip(10).map(|(name,_)| {
         let mut dashed_name = name.clone();
         dashed_name.insert(6,'-',);
         dashed_name.insert(4,'-',);
@@ -514,7 +514,7 @@ pub fn calculate_peaks(all_cases: &BTreeMap<String, Vec<Case>>, all_prevalences:
         ).map(|(index,_)| (index-1) as usize ).collect::<Vec<usize>>()
     };
 
-    let labels = all_cases.iter().skip(10).map(|(name,case)| {
+    let labels = all_cases.iter().skip(10).map(|(name,_)| {
         let mut dashed_name = name.clone();
         dashed_name.insert(6,'-',);
         dashed_name.insert(4,'-',);
@@ -557,6 +557,8 @@ pub fn calculate_peaks(all_cases: &BTreeMap<String, Vec<Case>>, all_prevalences:
 
             let first_date = cluster.iter().fold( current_date, |acc , (&d, _)| std::cmp::min(acc, d) );
             let last_date = cluster.iter().fold( current_date, |acc , (&d, _)| std::cmp::max(acc, d) );
+            
+            create_cluster_graph(&cluster);
 
             clusters.push(cluster.clone());
             println!("cluster of {} days:", (last_date - first_date).num_days());
@@ -569,4 +571,168 @@ pub fn calculate_peaks(all_cases: &BTreeMap<String, Vec<Case>>, all_prevalences:
             println!("");
         }
     }
+}
+
+
+
+//============================================================================================================
+
+type Nd = usize;
+type Ed<'a> = &'a (usize,usize,usize);
+struct Graph { 
+    name: String, 
+    selected_nodes: Vec<&'static str>, 
+    selected_edges: Vec<String>, 
+    nodes: Vec<&'static str>, 
+    edges: Vec<(usize,usize, usize)>, 
+    edge_names: Vec<String>
+}
+
+pub fn create_cluster_graph(cluster: &BTreeMap<NaiveDate, Vec<String>>) {
+    let nodes = vec![
+        " 0-9 ",
+        "10-19",
+        "20-29",
+        "30-39",
+        "40-49",
+        "50-59",
+        "60-69",
+        "70-79",
+        "80-89",
+        "90-xx"
+    ];
+    let mut edges: Vec<(usize,usize, usize)> = vec![];
+    // let mut edge_names: BTreeMap<(usize,usize), String> = BTreeMap::new();
+    let mut edge_names: Vec<String> = vec![];
+
+    let first_date = cluster.iter().fold( NaiveDate::from_ymd(2100, 1, 1), |acc , (&d, _)| std::cmp::min(acc, d) );
+    let last_date  = cluster.iter().fold( NaiveDate::from_ymd(2000, 1, 1), |acc , (&d, _)| std::cmp::max(acc, d) );
+
+    let from_dates = cluster.iter().take(cluster.len()-1).map(|v| *v.0).collect::<Vec<NaiveDate>>();
+    let to_dates = cluster.iter().skip(1).map(|v| *v.0).collect::<Vec<NaiveDate>>();
+    
+    // let mut count = 1;
+    for (f, t) in from_dates.iter().zip(to_dates.iter()) {
+        for from_node in &cluster[f] {
+            let from_index = nodes.iter().position(|&v| v == from_node.as_str()).unwrap();
+
+            for to_node in &cluster[t] {
+                let to_index = nodes.iter().position(|&v| v == to_node.as_str()).unwrap();
+                // let edge_name = format!("{}", count);
+                let edge_name = format!("{}/{}", t.day(),t.month());
+                let edge_name_index = edge_names.len();
+                edge_names.push(edge_name);
+                edges.push((from_index, to_index, edge_name_index));
+            }
+        }
+        // count += 1;
+    }
+
+    let mut selection_count = 0;
+    let mut save_dot = |d: NaiveDate, selected, targets | {
+        let graph_name: String = format!("cluster{}{}{}",d.year(),d.month(),d.day());
+        let graph = Graph { name: graph_name, selected_nodes: selected, selected_edges: targets, nodes: nodes.clone(), edges: edges.clone(), edge_names: edge_names.clone() };
+    
+        let mut output = File::create(format!("clusters/cluster_{:?}_{:?}_{:05}.dot", first_date, last_date, selection_count).as_str()).unwrap();
+        dot::render(&graph, &mut output).unwrap();
+        selection_count += 1;
+    };
+
+    from_dates.iter().for_each(|selection_date| {
+        let mut selected_nodes: Vec<&'static str> = vec![];
+        let mut selected_edges: Vec<String> = vec![];
+        for (f, t) in from_dates.iter().zip(to_dates.iter()) {
+            for from_node in &cluster[f] {
+                let from_index = nodes.iter().position(|&v| v == from_node.as_str()).unwrap();
+                if f==selection_date {
+                    selected_nodes.push(nodes[from_index]);
+                }
+            }
+            for to_node in &cluster[t] {
+                if f==selection_date {
+                    selected_edges.push(format!("{}/{}", t.day(),t.month()));
+                }
+            }
+        }
+
+        save_dot(from_dates[0], selected_nodes, selected_edges);
+    
+    });
+
+
+    let selection_date = last_date;
+    let (f,t) = from_dates.iter().zip(to_dates.iter()).last().unwrap();
+    let mut selected_nodes: Vec<&'static str> = vec![];
+    for to_node in &cluster[t] {
+        let from_index = nodes.iter().position(|&v| v == to_node.as_str()).unwrap();
+        if *t==selection_date {
+            selected_nodes.push(nodes[from_index]);
+        }
+    }
+
+    save_dot(from_dates[0], selected_nodes, vec![]);
+
+    let clip_name = format!("cluster_{:?}_{:?}", first_date, last_date);
+    let mut clip_creation_script = File::create(format!("clusters/create_{}.sh", clip_name)).unwrap();
+    // clip_creation_script.write_all(b"ffmpeg -framerate 1 -i ");
+    // clip_creation_script.write_all(clip_name.as_bytes());
+    // clip_creation_script.write_all(b"_%05d.png -s:v 1280x720 -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p ");
+    // clip_creation_script.write_all(clip_name.as_bytes());
+    // clip_creation_script.write_all(b".mp4\n");
+    // clip_creation_script.write_all(b"ffmpeg -i ");
+    // clip_creation_script.write_all(clip_name.as_bytes());
+    // clip_creation_script.write_all(b".mp4 -vf \"fps=1,scale=1280:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -loop 0 ");
+    // clip_creation_script.write_all(clip_name.as_bytes());
+    // clip_creation_script.write_all(b".gif");
+
+
+    clip_creation_script.write_all(b"ffmpeg -framerate 1 -i ");
+    clip_creation_script.write_all(clip_name.as_bytes());
+    clip_creation_script.write_all(b"_%05d.png -vf \"fps=1,scale=1280:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -loop 0 ");
+    clip_creation_script.write_all(clip_name.as_bytes());
+    clip_creation_script.write_all(b".gif");
+
+}
+
+impl<'a> dot::Labeller<'a, Nd, Ed<'a>> for Graph {
+    fn graph_id(&'a self) -> dot::Id<'a> { 
+        dot::Id::new(self.name.as_str()).unwrap() 
+    }
+    fn node_id(&'a self, n: &Nd) -> dot::Id<'a> {
+        dot::Id::new(format!("N{}", n)).unwrap()
+    }
+    fn node_label<'b>(&'b self, n: &Nd) -> dot::LabelText<'b> {
+        dot::LabelText::LabelStr(self.nodes[*n].into())
+    }
+    fn edge_label<'b>(&'b self, e: &Ed) -> dot::LabelText<'b> {
+        dot::LabelText::LabelStr(self.edge_names[e.2].clone().into())
+    }
+    fn edge_color(&'a self, e: &Ed) -> Option<dot::LabelText<'a>> {
+        if self.selected_edges.contains(&self.edge_names[e.2]) {
+            Some(dot::LabelText::LabelStr("red".into()))
+        } else {
+            Some(dot::LabelText::LabelStr("gray90".into()))
+        }        
+    }
+    fn node_color(&'a self, n: &Nd) -> Option<dot::LabelText<'a>> {
+        if self.selected_nodes.contains(&self.nodes[*n]) {
+            Some(dot::LabelText::LabelStr("red".into()))
+        } else {
+            None
+        }
+    }
+    fn node_style(&'a self, n: &Nd) -> dot::Style {
+        if self.selected_nodes.contains(&self.nodes[*n]) {
+            dot::Style::Filled
+        } else {
+            dot::Style::None
+        }        
+    }
+}
+
+impl<'a> dot::GraphWalk<'a, Nd, Ed<'a>> for Graph {
+    fn nodes(&self) -> dot::Nodes<'a,Nd> { (0..self.nodes.len()).collect() }
+    fn edges(&'a self) -> dot::Edges<'a,Ed<'a>> { self.edges.iter().collect() }
+    fn source(&self, e: &Ed) -> Nd { e.0 }
+    fn target(&self, e: &Ed) -> Nd { e.1 }
 }

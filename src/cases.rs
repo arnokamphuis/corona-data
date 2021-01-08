@@ -297,7 +297,7 @@ pub fn get_hospitalizationdata_from_file(from: Option<Date<Utc>>) -> Option<Vec<
         println!("Error reading file");
     }
 
-    let mut res: BTreeMap<String, usize> = BTreeMap::new();
+    // let mut res: BTreeMap<String, usize> = BTreeMap::new();
 
     // let mut lcps_data: BTreeMap<NaiveDate, (usize, usize)> = BTreeMap::new();
     
